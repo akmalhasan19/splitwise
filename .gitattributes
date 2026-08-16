@@ -1,0 +1,17 @@
+# Normalisasi line-ending (LF) lintas OS agar diff bersih & deterministik
+* text=auto eol=lf
+
+# Artefak biner tidak boleh dinormalisasi
+*.dll binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.jar binary
+*.class binary
+*.so binary
+*.keystore binary
+*.otf binary
+*.ttf binary

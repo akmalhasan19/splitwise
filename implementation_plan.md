@@ -49,24 +49,24 @@
 
 ### 📌 Minggu 1: Setup Proyek, Data Layer & CRUD Core
 
-- [ ] **1. Project Setup**
-  - [ ] Setup repository Git & branch protection
-  - [ ] Setup linter & formatting standards
-  - [ ] Setup struktur folder arsitektur (*Feature-First / Clean Architecture*)
-- [ ] **2. Database Setup**
-  - [ ] Setup DB lokal (Room/SQLite/Isar/Hive) sesuai skema
-  - [ ] Setup skema migration strategy dasar
-- [ ] **3. Repository Layer & DAO**
-  - [ ] Implementasi DAO & Repository entitas `Group`
-  - [ ] Implementasi DAO & Repository entitas `User`
-  - [ ] Implementasi Operasi CRUD transaksi `Expense`
-  - [ ] Implementasi Operasi CRUD transaksi `ExpenseShare`
-- [ ] **4. Data Validation & Helpers**
-  - [ ] Buat input validator (konversi otomatis string input ke `Integer`)
-  - [ ] Buat fungsi helper kalkulasi *Equal Split* (penanganan sisa pembulatan sen/rupiah, contoh: Rp100.000 / 3)
-- [ ] **5. Deliverables Minggu 1**
-  - [ ] Source code repository terstruktur
-  - [ ] Local DB Layer selesai & Unit Test CRUD lulus
+- [x] **1. Project Setup**
+  - [x] Setup repository Git & branch protection
+  - [x] Setup linter & formatting standards
+  - [x] Setup struktur folder arsitektur (*Feature-First / Clean Architecture*)
+- [x] **2. Database Setup**
+  - [x] Setup DB lokal (Room/SQLite/Isar/Hive) sesuai skema
+  - [x] Setup skema migration strategy dasar
+- [x] **3. Repository Layer & DAO**
+  - [x] Implementasi DAO & Repository entitas `Group`
+  - [x] Implementasi DAO & Repository entitas `User`
+  - [x] Implementasi Operasi CRUD transaksi `Expense`
+  - [x] Implementasi Operasi CRUD transaksi `ExpenseShare`
+- [x] **4. Data Validation & Helpers**
+  - [x] Buat input validator (konversi otomatis string input ke `Integer`)
+  - [x] Buat fungsi helper kalkulasi *Equal Split* (penanganan sisa pembulatan sen/rupiah, contoh: Rp100.000 / 3)
+- [x] **5. Deliverables Minggu 1**
+  - [x] Source code repository terstruktur
+  - [x] Local DB Layer selesai & Unit Test CRUD lulus
 
 ---
 
