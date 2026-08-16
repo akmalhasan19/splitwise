@@ -1,0 +1,27 @@
+# ============================================================
+# .gitignore — Debt-Splitter (Flutter/Dart)
+# ============================================================
+
+# --- Flutter/Dart build artifacts ---
+.dart_tool/
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+GeneratedPluginRegistrant.java
+
+# --- Simulasi log ---
+*.log
+*.tmp
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+*.swp
+.zed/
+
+# --- OS ---
+Thumbs.db
+.DS_Store

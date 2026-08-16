@@ -1,0 +1,20 @@
+# Analysis options — Debt-Splitter.
+# Mengikuti linter standar Flutter (flutter_lints v6) + penguatan type safety.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  exclude:
+    - build/**
+
+linter:
+  rules:
+    # Konsistensi & kebersihan kode
+    prefer_single_quotes: true
+    avoid_print: true
+    unnecessary_lambdas: true
+    # Keamanan async (offline app tetap harus deterministik)
+    unawaited_futures: true
