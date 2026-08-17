@@ -33,6 +33,12 @@ class AppDatabase {
   /// `true` selama koneksi masih terbuka.
   bool get isOpen => _db.isOpen;
 
+  /// Instance global yang sudah dibuka via [open], atau `null` bila belum.
+  ///
+  /// Dipakai layer DI (`lib/app/`) untuk menyuntikkan repo pada startup tanpa
+  /// membuka koneksi baru — konsisten dengan jaminan idempoten [open].
+  static AppDatabase? get instance => _instance;
+
   /// Membuka (atau mengambil koneksi yang sudah terbuka) database lokal.
   ///
   /// * [inMemory] — pakai database di memori (`:memory:`), untuk unit test.

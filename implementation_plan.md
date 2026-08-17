@@ -96,21 +96,21 @@
 
 ### 📌 Minggu 3: UI/UX Implementation & Integrasi WhatsApp Share
 
-- [ ] **1. Tampilan Utama & Grup**
-  - [ ] UI Dashboard (Daftar Grup & Ringkasan Total Saldo)
-  - [ ] UI Detail Grup (Riwayat transaksi & Daftar anggota)
-- [ ] **2. Form Entry Transaksi Cepat (Quick-Entry Sheet)**
-  - [ ] UI Modal Input Pengeluaran
-  - [ ] Auto-formatting currency pada input nominal
-  - [ ] Selector Pembayar (*Paid By*)
-  - [ ] Selector Opsi Split (Sama Rata / Custom Nominal)
-- [ ] **3. Layar "Settle Up"**
-  - [ ] Visual Card instruksi pembayaran (contoh: *"Budi transfer Rp33.333 ke Andi"*) berdasarkan output Greedy Engine
-- [ ] **4. WhatsApp Summary Generator**
-  - [ ] Buat parser format teks otomatis (Markdown format untuk WhatsApp)
-  - [ ] Integrasikan dengan Native OS Share Sheet (Deep Link ke WhatsApp / Apps chat)
-- [ ] **5. Deliverables Minggu 3**
-  - [ ] Fitur MVP UI lengkap dari input transaksi -> visualisasi pelunasan -> WhatsApp share
+- [x] **1. Tampilan Utama & Grup**
+  - [x] UI Dashboard (Daftar Grup & Ringkasan Total Saldo)
+  - [x] UI Detail Grup (Riwayat transaksi & Daftar anggota)
+- [x] **2. Form Entry Transaksi Cepat (Quick-Entry Sheet)**
+  - [x] UI Modal Input Pengeluaran
+  - [x] Auto-formatting currency pada input nominal
+  - [x] Selector Pembayar (*Paid By*)
+  - [x] Selector Opsi Split (Sama Rata / Custom Nominal)
+- [x] **3. Layar "Settle Up"**
+  - [x] Visual Card instruksi pembayaran (contoh: *"Budi transfer Rp33.333 ke Andi"*) berdasarkan output Greedy Engine
+- [x] **4. WhatsApp Summary Generator**
+  - [x] Buat parser format teks otomatis (Markdown format untuk WhatsApp)
+  - [x] Integrasikan dengan Native OS Share Sheet (Deep Link ke WhatsApp / Apps chat)
+- [x] **5. Deliverables Minggu 3**
+  - [x] Fitur MVP UI lengkap dari input transaksi -> visualisasi pelunasan -> WhatsApp share
 
 ---
 

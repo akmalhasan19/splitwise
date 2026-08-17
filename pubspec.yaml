@@ -28,6 +28,8 @@ dependencies:
   # ================= Utility =================
   collection: ^1.19.1         # PriorityQueue (heap) untuk settle-up engine
   uuid: ^4.6.0               # UUID v4 untuk Primary Key (id: STRING)
+  provider: ^6.1.5+1         # State management / DI ringan (ChangeNotifier)
+  share_plus: ^10.1.4        # Native OS Share Sheet (deep link ke WhatsApp/chat)
 
 dev_dependencies:
   flutter_test:

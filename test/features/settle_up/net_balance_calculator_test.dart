@@ -43,19 +43,22 @@ ExpenseWithShares _expense({
 
 void main() {
   group('NetBalanceCalculator.calculateBalances', () {
-    test('kreditur: net = totalPaid - totalShare (sisa ganjil equal split)', () {
-      // Rp100.000 / 3 -> [33.334, 33.333, 33.333]; pembayar adalah A sendiri.
-      final balances = NetBalanceCalculator.calculateBalances([
-        _expense(
-          id: 'e1',
-          paidBy: 'A',
-          amount: 100_000,
-          shares: {'A': 33_334, 'B': 33_333, 'C': 33_333},
-        ),
-      ]);
+    test(
+      'kreditur: net = totalPaid - totalShare (sisa ganjil equal split)',
+      () {
+        // Rp100.000 / 3 -> [33.334, 33.333, 33.333]; pembayar adalah A sendiri.
+        final balances = NetBalanceCalculator.calculateBalances([
+          _expense(
+            id: 'e1',
+            paidBy: 'A',
+            amount: 100_000,
+            shares: {'A': 33_334, 'B': 33_333, 'C': 33_333},
+          ),
+        ]);
 
-      expect(balances, {'A': 66_666, 'B': -33_333, 'C': -33_333});
-    });
+        expect(balances, {'A': 66_666, 'B': -33_333, 'C': -33_333});
+      },
+    );
 
     test('akumulasi beberapa expense (paid & share dijumlah per user)', () {
       final balances = NetBalanceCalculator.calculateBalances([
@@ -65,12 +68,7 @@ void main() {
           amount: 100_000,
           shares: {'B': 100_000},
         ),
-        _expense(
-          id: 'e2',
-          paidBy: 'B',
-          amount: 60_000,
-          shares: {'C': 60_000},
-        ),
+        _expense(id: 'e2', paidBy: 'B', amount: 60_000, shares: {'C': 60_000}),
       ]);
 
       // A: +100.000, B: -100.000 + 60.000 = -40.000, C: -60.000.
@@ -105,12 +103,7 @@ void main() {
 
     test('user hanya dicatat sebagai pembayar, bukan penerima share', () {
       final balances = NetBalanceCalculator.calculateBalances([
-        _expense(
-          id: 'e1',
-          paidBy: 'A',
-          amount: 50_000,
-          shares: {'B': 50_000},
-        ),
+        _expense(id: 'e1', paidBy: 'A', amount: 50_000, shares: {'B': 50_000}),
       ]);
 
       expect(balances, {'A': 50_000, 'B': -50_000});
@@ -166,11 +159,10 @@ void main() {
           ),
         ]);
 
-        expect(
-          balances,
-          {'A': 60_000, 'B': -60_000},
-          reason: 'splitType=$splitType',
-        );
+        expect(balances, {
+          'A': 60_000,
+          'B': -60_000,
+        }, reason: 'splitType=$splitType');
       }
     });
   });

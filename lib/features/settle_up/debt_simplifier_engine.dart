@@ -54,8 +54,7 @@ class SettlementPayment {
   int get hashCode => Object.hash(debtorId, creditorId, amount);
 
   @override
-  String toString() =>
-      'SettlementPayment($debtorId -> $creditorId: Rp$amount)';
+  String toString() => 'SettlementPayment($debtorId -> $creditorId: Rp$amount)';
 }
 
 /// Entri internal heap: seorang user + balance (piutang/utang) miliknya.
@@ -107,10 +106,9 @@ class DebtSimplifierEngine {
       final creditor = creditors.removeFirst();
       final debtor = debtors.removeFirst();
       final debtorAbsBalance = -debtor.balance;
-      final settleAmount =
-          creditor.balance <= debtorAbsBalance
-              ? creditor.balance
-              : debtorAbsBalance;
+      final settleAmount = creditor.balance <= debtorAbsBalance
+          ? creditor.balance
+          : debtorAbsBalance;
 
       settlements.add(
         SettlementPayment(

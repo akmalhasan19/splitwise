@@ -66,37 +66,81 @@ void _assertPaymentsClearAll(
 
 void main() {
   group('DebtSimplifierEngine — Kasus Wajib 1: Transaksi melingkar 3+ orang', () {
-    test('lingkaran penuh A->B->C->A saling meniadakan -> tidak ada transfer', () {
-      // A berutang ke B, B berutang ke C, C berutang ke A — semua senilai sama.
-      final expenses = [
-        _expense(id: 'e1', paidBy: 'B', amount: 30_000, shares: {'A': 30_000}),
-        _expense(id: 'e2', paidBy: 'C', amount: 30_000, shares: {'B': 30_000}),
-        _expense(id: 'e3', paidBy: 'A', amount: 30_000, shares: {'C': 30_000}),
-      ];
-      final balances = NetBalanceCalculator.calculateBalances(expenses);
+    test(
+      'lingkaran penuh A->B->C->A saling meniadakan -> tidak ada transfer',
+      () {
+        // A berutang ke B, B berutang ke C, C berutang ke A — semua senilai sama.
+        final expenses = [
+          _expense(
+            id: 'e1',
+            paidBy: 'B',
+            amount: 30_000,
+            shares: {'A': 30_000},
+          ),
+          _expense(
+            id: 'e2',
+            paidBy: 'C',
+            amount: 30_000,
+            shares: {'B': 30_000},
+          ),
+          _expense(
+            id: 'e3',
+            paidBy: 'A',
+            amount: 30_000,
+            shares: {'C': 30_000},
+          ),
+        ];
+        final balances = NetBalanceCalculator.calculateBalances(expenses);
 
-      expect(balances, {'A': 0, 'B': 0, 'C': 0});
-      expect(DebtSimplifierEngine.settle(balances), isEmpty);
-    });
+        expect(balances, {'A': 0, 'B': 0, 'C': 0});
+        expect(DebtSimplifierEngine.settle(balances), isEmpty);
+      },
+    );
 
-    test('lingkaran + sisa utang: disederhanakan dari 3 transfer menjadi 2', () {
-      // A mengutang B 50.000, B mengutang C 30.000, C mengutang A 20.000.
-      final expenses = [
-        _expense(id: 'e1', paidBy: 'B', amount: 50_000, shares: {'A': 50_000}),
-        _expense(id: 'e2', paidBy: 'C', amount: 30_000, shares: {'B': 30_000}),
-        _expense(id: 'e3', paidBy: 'A', amount: 20_000, shares: {'C': 20_000}),
-      ];
-      final balances = NetBalanceCalculator.calculateBalances(expenses);
-      // net: A -30.000, B +20.000, C +10.000.
+    test(
+      'lingkaran + sisa utang: disederhanakan dari 3 transfer menjadi 2',
+      () {
+        // A mengutang B 50.000, B mengutang C 30.000, C mengutang A 20.000.
+        final expenses = [
+          _expense(
+            id: 'e1',
+            paidBy: 'B',
+            amount: 50_000,
+            shares: {'A': 50_000},
+          ),
+          _expense(
+            id: 'e2',
+            paidBy: 'C',
+            amount: 30_000,
+            shares: {'B': 30_000},
+          ),
+          _expense(
+            id: 'e3',
+            paidBy: 'A',
+            amount: 20_000,
+            shares: {'C': 20_000},
+          ),
+        ];
+        final balances = NetBalanceCalculator.calculateBalances(expenses);
+        // net: A -30.000, B +20.000, C +10.000.
 
-      final payments = DebtSimplifierEngine.settle(balances);
+        final payments = DebtSimplifierEngine.settle(balances);
 
-      expect(payments, <SettlementPayment>[
-        const SettlementPayment(debtorId: 'A', creditorId: 'B', amount: 20_000),
-        const SettlementPayment(debtorId: 'A', creditorId: 'C', amount: 10_000),
-      ]);
-      _assertPaymentsClearAll(balances, payments);
-    });
+        expect(payments, <SettlementPayment>[
+          const SettlementPayment(
+            debtorId: 'A',
+            creditorId: 'B',
+            amount: 20_000,
+          ),
+          const SettlementPayment(
+            debtorId: 'A',
+            creditorId: 'C',
+            amount: 10_000,
+          ),
+        ]);
+        _assertPaymentsClearAll(balances, payments);
+      },
+    );
   });
 
   group('DebtSimplifierEngine — Kasus Wajib 2: Sisa ganjil equal split', () {
@@ -146,12 +190,7 @@ void main() {
           amount: 60_000,
           shares: {'B': 40_000, 'C': 20_000},
         ),
-        _expense(
-          id: 'e2',
-          paidBy: 'A',
-          amount: 24_000,
-          shares: {'C': 24_000},
-        ),
+        _expense(id: 'e2', paidBy: 'A', amount: 24_000, shares: {'C': 24_000}),
       ];
       final balances = NetBalanceCalculator.calculateBalances(expenses);
 
