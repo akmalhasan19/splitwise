@@ -2,6 +2,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import 'local_schema.dart';
+import 'schema_migrator.dart';
 
 /// Layer akses database lokal (SQLite via `sqflite`) — Phase 1, Task 2.
 ///
@@ -100,25 +101,24 @@ class AppDatabase {
   }
 
   /// Dipanggil saat database baru pertama kali dibuat (belum ada skema).
+  ///
+  /// Menjalankan skema V1 lalu (bila `dbSchemaVersion >= 2`) langsung
+  /// menerapkan langkah V2 yang sama seperti migrasi — sehingga *fresh install*
+  /// dan hasil `onUpgrade` menghasilkan struktur database yang identik.
   static Future<void> _onCreate(Database db, int version) async {
     assert(version == dbSchemaVersion, 'onCreate harus versi $dbSchemaVersion');
     for (final statement in createSchemaV1Scripts) {
       await db.execute(statement);
     }
+    if (dbSchemaVersion >= 2) {
+      await SchemaMigrator.migrateV1ToV2(db);
+    }
   }
 
   /// Basis migration strategy: langkah berurutan V(n) -> V(n+1).
   ///
-  /// Saat versi baru (V2) dibutuhkan, tambahkan blok berikut
-  /// (jangan pernah meng-edit DDL V1):
-  ///
-  /// ```dart
-  /// if (oldVersion < 2) {
-  ///   await db.transaction((txn) async {
-  ///     await txn.execute('ALTER TABLE ...');
-  ///   });
-  /// }
-  /// ```
+  /// ⚠️ JANGAN pernah meng-edit DDL V1 setelah rilis — perubahan skema
+  /// dilakukan hanya lewat blok `if (oldVersion < n)` di bawah ini.
   static Future<void> _onUpgrade(
     Database db,
     int oldVersion,
@@ -130,6 +130,10 @@ class AppDatabase {
       'perbarui aplikasi sebelum membuka database ini.',
     );
     assert(oldVersion <= newVersion, 'oldVersion harus <= newVersion');
+
+    if (oldVersion < 2) {
+      await SchemaMigrator.migrateV1ToV2(db);
+    }
   }
 
   /// Menutup koneksi & membersihkan instance global (open berikutnya baru).

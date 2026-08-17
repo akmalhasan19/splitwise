@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:debt_splitter/app/services/debt_splitter_service.dart';
 import 'package:debt_splitter/core/models/expense.dart';
+import 'package:debt_splitter/core/models/expense_with_items.dart';
 import 'package:debt_splitter/core/models/expense_with_shares.dart';
 import 'package:debt_splitter/core/models/group.dart';
 import 'package:debt_splitter/core/models/user.dart';
@@ -21,11 +22,17 @@ class ExpenseHistoryItem {
     required this.expense,
     required this.paidByName,
     required this.shareCount,
+    this.itemCount = 0,
   });
 
   final Expense expense;
   final String paidByName;
+
+  /// Jumlah baris `expense_shares` (dipakai untuk expense non-ITEM).
   final int shareCount;
+
+  /// Jumlah item pada expense mode Struk (0 untuk expense non-ITEM).
+  final int itemCount;
 }
 
 class GroupDetailStore extends ChangeNotifier {
@@ -61,7 +68,7 @@ class GroupDetailStore extends ChangeNotifier {
     notifyListeners();
     try {
       final snapshot = await _service.getSummarySnapshot(groupId);
-      final expenses = await _service.getExpensesByGroup(groupId);
+      final expenses = await _service.getExpensesByGroupWithItems(groupId);
       _group = snapshot.group;
       _members = snapshot.members;
       _netBalances = snapshot.netBalances;
@@ -93,6 +100,7 @@ class GroupDetailStore extends ChangeNotifier {
           expense: e.expense,
           paidByName: nameById[e.expense.paidBy] ?? '—',
           shareCount: e.shares.length,
+          itemCount: e.items.length,
         ),
     ];
   }
@@ -127,10 +135,29 @@ class GroupDetailStore extends ChangeNotifier {
     await load();
   }
 
+  Future<void> addItemSplitExpense({
+    required String paidBy,
+    required List<ExpenseItemWithClaims> items,
+    String? note,
+  }) async {
+    await _service.addItemSplitExpense(
+      groupId: groupId,
+      paidBy: paidBy,
+      items: items,
+      note: note,
+    );
+    await load();
+  }
+
   Future<void> deleteExpense(String id) async {
     await _service.deleteExpense(id);
     await load();
   }
+
+  /// Mengambil detail expense mode Struk (item + claimant) untuk ditampilkan
+  /// di [ItemExpenseDetailSheet]. Tidak memanggil `load()` — hanya query baca.
+  Future<ExpenseWithItems> getExpenseWithItems(String expenseId) =>
+      _service.getExpenseWithItems(expenseId);
 
   Future<void> addMember(String name) async {
     await _service.addMemberByName(groupId, name);

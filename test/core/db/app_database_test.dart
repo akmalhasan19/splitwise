@@ -119,7 +119,7 @@ void main() {
       await app.close();
     });
 
-    test('onCreate menghasilkan tepat 5 tabel aplikasi', () async {
+    test('onCreate menghasilkan tepat 7 tabel aplikasi', () async {
       final rows = await app.db.rawQuery(
         'SELECT name FROM sqlite_master '
         "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
@@ -127,7 +127,7 @@ void main() {
       );
       final names = rows.map((row) => row['name'] as String).toSet();
 
-      expect(names, hasLength(5));
+      expect(names, hasLength(7));
       expect(
         names,
         containsAll(<String>[
@@ -136,6 +136,8 @@ void main() {
           DbTable.groupMembers,
           DbTable.expenses,
           DbTable.expenseShares,
+          DbTable.expenseItems,
+          DbTable.itemClaims,
         ]),
       );
     });
@@ -273,6 +275,62 @@ void main() {
       );
       expect(amount['type'], 'INTEGER');
       expect(amount['notnull'], 1);
+    });
+
+    test('expense_items: 6 kolom, unit_price INTEGER, quantity CHECK', () async {
+      final info = await _tableInfo(app.db, DbTable.expenseItems);
+      expect(info, hasLength(6));
+
+      final id = await _columnInfo(app.db, DbTable.expenseItems, ExpenseItemCol.id);
+      expect(id['type'], 'TEXT');
+      expect(id['pk'], 1);
+
+      final expenseId = await _columnInfo(
+        app.db,
+        DbTable.expenseItems,
+        ExpenseItemCol.expenseId,
+      );
+      expect(expenseId['type'], 'TEXT');
+      expect(expenseId['notnull'], 1);
+
+      final price = await _columnInfo(
+        app.db,
+        DbTable.expenseItems,
+        ExpenseItemCol.unitPrice,
+      );
+      expect(price['type'], 'INTEGER');
+      expect(price['notnull'], 1);
+
+      final qty = await _columnInfo(
+        app.db,
+        DbTable.expenseItems,
+        ExpenseItemCol.quantity,
+      );
+      expect(qty['type'], 'INTEGER');
+      expect(qty['notnull'], 1);
+    });
+
+    test('item_claims: 2 kolom, PK komposit (expense_item_id, user_id)', () async {
+      final info = await _tableInfo(app.db, DbTable.itemClaims);
+      expect(info, hasLength(2));
+
+      final itemId = await _columnInfo(
+        app.db,
+        DbTable.itemClaims,
+        ItemClaimCol.expenseItemId,
+      );
+      expect(itemId['type'], 'TEXT');
+      expect(itemId['notnull'], 1);
+      expect(itemId['pk'], 1);
+
+      final userId = await _columnInfo(
+        app.db,
+        DbTable.itemClaims,
+        ItemClaimCol.userId,
+      );
+      expect(userId['type'], 'TEXT');
+      expect(userId['notnull'], 1);
+      expect(userId['pk'], 2);
     });
   });
   group('AppDatabase — relasi Foreign Key & Primary Key komposit', () {
@@ -449,7 +507,7 @@ void main() {
       await appHandle.close();
     });
 
-    test('split_type menerima EQUAL, EXACT, dan PERCENT', () async {
+    test('split_type menerima EQUAL, EXACT, PERCENT, dan ITEM', () async {
       for (final type in ExpenseSplitType.values) {
         await _insertExpense(
           db,
@@ -460,7 +518,7 @@ void main() {
         );
       }
 
-      expect(await _countRows(db, DbTable.expenses), 3);
+      expect(await _countRows(db, DbTable.expenses), 4);
     });
 
     test('split_type menolak nilai di luar CHECK constraint', () async {

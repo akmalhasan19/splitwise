@@ -12,15 +12,21 @@ library;
 import 'package:debt_splitter/core/db/app_database.dart';
 import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/expense.dart';
+import 'package:debt_splitter/core/models/expense_item.dart';
 import 'package:debt_splitter/core/models/expense_share.dart';
+import 'package:debt_splitter/core/models/expense_with_items.dart';
 import 'package:debt_splitter/core/models/expense_with_shares.dart';
+import 'package:debt_splitter/core/models/item_claim.dart';
+import 'package:debt_splitter/core/money/item_bill_splitter.dart';
 import 'package:debt_splitter/core/money/money_amount.dart';
 import 'package:debt_splitter/core/money/split_calculator.dart';
 import 'package:debt_splitter/features/groups/data/group_member_dao.dart';
 import 'package:uuid/uuid.dart';
 
 import 'expense_dao.dart';
+import 'expense_item_dao.dart';
 import 'expense_share_dao.dart';
+import 'item_claim_dao.dart';
 
 class ExpenseRepository {
   ExpenseRepository(this._appDatabase, {Uuid? uuid}) : _uuid = uuid ?? Uuid();
@@ -31,6 +37,10 @@ class ExpenseRepository {
   static const ExpenseDao _expenseDao = ExpenseDao();
   static const ExpenseShareDao _shareDao = ExpenseShareDao();
   static const GroupMemberDao _memberDao = GroupMemberDao();
+
+  // Skema V2 — DAO fitur bilah "Struk".
+  static const ExpenseItemDao _itemDao = ExpenseItemDao();
+  static const ItemClaimDao _claimDao = ItemClaimDao();
 
   /// Membuat expense baru beserta seluruh [shares] dalam satu transaksi.
   ///
@@ -108,6 +118,181 @@ class ExpenseRepository {
       date: date,
       note: note,
       shares: shares,
+    );
+  }
+
+  /// Membuat expense berjenis **ITEM** ("Struk") secara atomik.
+  ///
+  /// Input adalah daftar [ExpenseItemWithClaims] (item + siapa yang makan).
+  /// Flow di dalam satu transaksi:
+  /// 1. hitung total & pembagian via [ItemBillSplitter] (konservasi uang
+  ///    dijamin: `sum(share) == sum(unitPrice * quantity) == amount`);
+  /// 2. tulis `expenses` + `expense_shares` (seperti expense biasa, agar
+  ///    engine balance/settlement/QR tetap bekerja tanpa perubahan);
+  /// 3. tulis `expense_items` + `item_claims` (detail bilah untuk UI).
+  ///
+  /// Item boleh membawa id kosong — repository mengisi UUID v4. Seluruh
+  /// claimant wajib anggota grup; item wajib memiliki claimant non-kosong.
+  Future<ExpenseWithItems> createItemSplitExpense({
+    required String groupId,
+    required String paidBy,
+    required int date,
+    required List<ExpenseItemWithClaims> items,
+    String? note,
+  }) async {
+    if (items.isEmpty) {
+      throw ArgumentError.value(
+        items,
+        'items',
+        'Bill harus memiliki minimal satu item.',
+      );
+    }
+    final bill = ExpenseWithItems(
+      expense: Expense(
+        id: '',
+        groupId: groupId,
+        paidBy: paidBy,
+        amount: 0,
+        splitType: ExpenseSplitType.item,
+        date: date,
+        note: note,
+      ),
+      items: items,
+    );
+    final total = bill.total();
+    if (total <= 0) {
+      throw ArgumentError.value(total, 'items', 'Total bill harus > 0.');
+    }
+    final sharesById = bill.split();
+
+    final memberIds = (await _memberDao.getMemberUserIds(
+      _appDatabase.db,
+      groupId,
+    )).toSet();
+    if (!memberIds.contains(paidBy)) {
+      throw ArgumentError.value(
+        paidBy,
+        'paidBy',
+        'Pembayar harus anggota grup.',
+      );
+    }
+    for (final entry in items) {
+      for (final claimant in entry.claimantIds) {
+        if (!memberIds.contains(claimant)) {
+          throw ArgumentError.value(
+            claimant,
+            'claimantIds',
+            'Seluruh pengeklaim item harus anggota grup.',
+          );
+        }
+      }
+    }
+
+    final expenseId = _uuid.v4();
+    final expense = Expense(
+      id: expenseId,
+      groupId: groupId,
+      paidBy: paidBy,
+      amount: total,
+      splitType: ExpenseSplitType.item,
+      date: date,
+      note: note,
+    );
+
+    // Item: Generate UUID bila masih kosong; semua menjadi milik expense ini.
+    final ownedItems = <ExpenseItem>[
+      for (final entry in items)
+        entry.item.id.isEmpty
+            ? ExpenseItem(
+                id: _uuid.v4(),
+                name: entry.item.name,
+                unitPrice: entry.item.unitPrice,
+                quantity: entry.item.quantity,
+                ordering: entry.item.ordering,
+              )
+            : entry.item,
+    ].map((item) => item.withExpenseId(expenseId)).toList();
+
+    final claims = <ItemClaim>[
+      for (var i = 0; i < items.length; i++)
+        for (final userId in items[i].claimantIds)
+          ItemClaim(expenseItemId: ownedItems[i].id, userId: userId),
+    ];
+    final shares = <ExpenseShare>[
+      for (final entry in sharesById.entries)
+        ExpenseShare(
+          id: _uuid.v4(),
+          userId: entry.key,
+          shareAmount: entry.value,
+        ).withExpenseId(expenseId),
+    ];
+
+    await _appDatabase.db.transaction((txn) async {
+      await _expenseDao.insert(txn, expense);
+      await _shareDao.insertAll(txn, shares);
+      await _itemDao.insertAll(txn, ownedItems);
+      await _claimDao.insertAll(txn, claims);
+    });
+
+    return ExpenseWithItems(
+      expense: expense,
+      items: [
+        for (var i = 0; i < items.length; i++)
+          ExpenseItemWithClaims(
+            item: ownedItems[i],
+            claimantIds: List<String>.from(items[i].claimantIds),
+          ),
+      ],
+    );
+  }
+
+  /// Mengambil satu expense + seluruh item beserta claimant-nya. Untuk expense
+  /// non-ITEM (atau tanpa item), `items` kosong. Melempar [StateError] bila
+  /// expense tidak ada.
+  Future<ExpenseWithItems> getExpenseWithItems(String expenseId) async {
+    final expense = await _expenseDao.getById(_appDatabase.db, expenseId);
+    if (expense == null) {
+      throw StateError('Expense "$expenseId" tidak ditemukan.');
+    }
+    return _attachItems(expense);
+  }
+
+  /// Seluruh expense milik grup, masing-masing disertai item & claimant-nya
+  /// (kosong untuk expense non-ITEM). Sumber data utama payload sync skema V2.
+  Future<List<ExpenseWithShares>> getExpenseWithSharesByGroupWithItems(
+    String groupId,
+  ) async {
+    final expenses = await _expenseDao.getByGroup(_appDatabase.db, groupId);
+    final result = <ExpenseWithShares>[];
+    for (final expense in expenses) {
+      final shares = await _shareDao.getByExpense(_appDatabase.db, expense.id);
+      final withItems = await _attachItems(expense);
+      result.add(
+        ExpenseWithShares(
+          expense: expense,
+          shares: shares,
+          items: withItems.items,
+        ),
+      );
+    }
+    return result;
+  }
+
+  Future<ExpenseWithItems> _attachItems(Expense expense) async {
+    final items = await _itemDao.getByExpense(_appDatabase.db, expense.id);
+    final claimants = await _claimDao.getClaimantsByExpense(
+      _appDatabase.db,
+      expense.id,
+    );
+    return ExpenseWithItems(
+      expense: expense,
+      items: [
+        for (final item in items)
+          ExpenseItemWithClaims(
+            item: item,
+            claimantIds: claimants[item.id] ?? const [],
+          ),
+      ],
     );
   }
 

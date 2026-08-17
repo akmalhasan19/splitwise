@@ -20,7 +20,7 @@ library;
 /// Naikkan angka ini setiap kali struktur berubah, lalu daftarkan langkah
 /// migrasi di `AppDatabase._onUpgrade`. Jangan pernah mengubah isi
 /// `createSchemaV1Scripts` setelah dirilis.
-const int dbSchemaVersion = 1;
+const int dbSchemaVersion = 2;
 
 /// Nama-nama tabel skema lokal.
 ///
@@ -31,6 +31,9 @@ abstract final class DbTable {
   static const String groupMembers = 'group_members';
   static const String expenses = 'expenses';
   static const String expenseShares = 'expense_shares';
+  // Skema V2 — tabel fitur bilah "Struk" (itemized split).
+  static const String expenseItems = 'expense_items';
+  static const String itemClaims = 'item_claims';
 }
 
 /// Kolom tabel `users` (entitas `User`).
@@ -74,6 +77,22 @@ abstract final class ExpenseShareCol {
   static const String shareAmount = 'share_amount'; // INTEGER (nominal utuh)
 }
 
+/// Kolom tabel `expense_items` (entitas `ExpenseItem`, skema V2).
+abstract final class ExpenseItemCol {
+  static const String id = 'id'; // TEXT, UUID, PRIMARY KEY
+  static const String expenseId = 'expense_id'; // TEXT -> expenses.id (FK)
+  static const String name = 'name'; // TEXT (nama menu/pos)
+  static const String unitPrice = 'unit_price'; // INTEGER (harga per unit utuh)
+  static const String quantity = 'quantity'; // INTEGER (jumlah unit, >= 1)
+  static const String ordering = 'ordering'; // INTEGER (urutan tampil)
+}
+
+/// Kolom tabel `item_claims` (entitas `ItemClaim`, skema V2).
+abstract final class ItemClaimCol {
+  static const String expenseItemId = 'expense_item_id'; // TEXT -> expense_items.id (FK)
+  static const String userId = 'user_id'; // TEXT -> users.id (FK)
+}
+
 /// Tipe pembagian biaya pada sebuah expense (kolom `expenses.split_type`).
 ///
 /// Nilai yang disimpan ke DB adalah string UPPER-CASE (`dbValue`), persis sama
@@ -81,7 +100,8 @@ abstract final class ExpenseShareCol {
 enum ExpenseSplitType {
   equal('EQUAL'),
   exact('EXACT'),
-  percent('PERCENT');
+  percent('PERCENT'),
+  item('ITEM');
 
   const ExpenseSplitType(this.dbValue);
 
@@ -99,7 +119,7 @@ enum ExpenseSplitType {
     throw ArgumentError.value(
       value,
       'value',
-      'split_type tidak dikenal (harus EQUAL/EXACT/PERCENT): $value',
+      'split_type tidak dikenal (harus EQUAL/EXACT/PERCENT/ITEM): $value',
     );
   }
 }
@@ -158,6 +178,53 @@ final List<String> createSchemaV1Scripts = const <String>[
     user_id TEXT NOT NULL
       REFERENCES users (id) ON DELETE CASCADE,
     share_amount INTEGER NOT NULL
+  )
+  ''',
+];
+
+/// DDL tabel `expenses` versi V2 — satu-satunya perbedaan dari V1 adalah
+/// `CHECK split_type` yang diperluas mencakup `'ITEM'`.
+///
+/// Migrasi V1 -> V2 memakai "tabel sementara + copy + rename" karena SQLite
+/// tidak mendukung `ALTER ... CHECK`. Seluruh kontrak kolom lain identik
+/// dengan V1 sehingga data lama ter-copy utuh.
+const String createSchemaV2ExpenseTableScript = '''
+  CREATE TABLE expenses_v2 (
+    id TEXT NOT NULL PRIMARY KEY,
+    group_id TEXT NOT NULL
+      REFERENCES groups (id) ON DELETE CASCADE,
+    paid_by TEXT NOT NULL
+      REFERENCES users (id) ON DELETE RESTRICT,
+    amount INTEGER NOT NULL,
+    split_type TEXT NOT NULL
+      CHECK (split_type IN ('EQUAL', 'EXACT', 'PERCENT', 'ITEM')),
+    date INTEGER NOT NULL,
+    note TEXT
+  )
+  ''';
+
+/// Pernyataan DDL untuk tabel-tabel baru skema V2 (`expense_items` &
+/// `item_claims`) — dibuat saat migrasi V1 -> V2 maupun pada fresh install
+/// (setelah V1 dieksekusi, `_onCreate` menyamakan database ke V2).
+final List<String> createSchemaV2Scripts = const <String>[
+  '''
+  CREATE TABLE expense_items (
+    id TEXT NOT NULL PRIMARY KEY,
+    expense_id TEXT NOT NULL
+      REFERENCES expenses (id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    unit_price INTEGER NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity >= 1),
+    ordering INTEGER NOT NULL
+  )
+  ''',
+  '''
+  CREATE TABLE item_claims (
+    expense_item_id TEXT NOT NULL
+      REFERENCES expense_items (id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL
+      REFERENCES users (id) ON DELETE CASCADE,
+    PRIMARY KEY (expense_item_id, user_id)
   )
   ''',
 ];

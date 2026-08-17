@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/expense.dart';
+import 'package:debt_splitter/core/models/expense_item.dart';
 import 'package:debt_splitter/core/models/expense_share.dart';
+import 'package:debt_splitter/core/models/expense_with_items.dart';
 import 'package:debt_splitter/core/models/expense_with_shares.dart';
 import 'package:debt_splitter/core/models/group.dart';
 import 'package:debt_splitter/core/models/user.dart';
@@ -111,7 +113,7 @@ void main() {
     test('serialisasi ringkas: key pendek & note null dihilangkan', () {
       final json = buildPayload().toJson();
       expect(json['t'], 'DS1');
-      expect(json['v'], 1);
+      expect(json['v'], GroupSyncPayload.currentSchemaVersion);
       expect(json.containsKey('x'), isTrue);
 
       final groupJson = json['g']! as Map<String, Object?>;
@@ -231,6 +233,84 @@ void main() {
         shares: const <ExpenseShare>[],
       );
       final json = buildPayload(e: bad).toJson();
+      expect(
+        () => GroupSyncPayload.fromJson(json),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+
+  group('GroupSyncPayload — item bilah "Struk" (skema V2)', () {
+    ExpenseWithShares itemExpense(String itemClaimant) {
+      return ExpenseWithShares(
+        expense: Expense(
+          id: 'e-item',
+          groupId: 'g1',
+          paidBy: 'u1',
+          amount: 55_000,
+          splitType: ExpenseSplitType.item,
+          date: 1_700_000_300,
+          note: 'Makan rm',
+        ),
+        shares: const [
+          ExpenseShare(
+            id: 'si1',
+            expenseId: 'e-item',
+            userId: 'u1',
+            shareAmount: 25_000,
+          ),
+          ExpenseShare(
+            id: 'si2',
+            expenseId: 'e-item',
+            userId: 'u2',
+            shareAmount: 30_000,
+          ),
+        ],
+        items: [
+          const ExpenseItemWithClaims(
+            item: ExpenseItem(
+              id: 'it1',
+              name: 'Nasi Goreng',
+              unitPrice: 25_000,
+              quantity: 1,
+              ordering: 0,
+            ),
+            claimantIds: ['u1'],
+          ),
+          ExpenseItemWithClaims(
+            item: const ExpenseItem(
+              id: 'it2',
+              name: 'Sate',
+              unitPrice: 60_000,
+              quantity: 1,
+              ordering: 1,
+            ),
+            claimantIds: [itemClaimant],
+          ),
+        ],
+      );
+    }
+
+    test('roundtrip expense ITEM membawa item & claimant', () {
+      final payload = buildPayload(e: [itemExpense('u1')]);
+      final decoded = GroupSyncPayload.fromJson(payload.toJson());
+
+      final expense = decoded.expenses.single;
+      expect(expense.expense.splitType, ExpenseSplitType.item);
+      expect(expense.items, hasLength(2));
+
+      final first = expense.items.first;
+      expect(first.item.name, 'Nasi Goreng');
+      expect(first.item.unitPrice, 25_000);
+      expect(first.item.quantity, 1);
+      expect(first.claimantIds, ['u1']);
+
+      final second = expense.items[1];
+      expect(second.claimantIds, ['u1']);
+    });
+
+    test('fromJson menolak claimant item yang bukan anggota', () {
+      final json = buildPayload(e: [itemExpense('u-999')]).toJson();
       expect(
         () => GroupSyncPayload.fromJson(json),
         throwsA(isA<FormatException>()),

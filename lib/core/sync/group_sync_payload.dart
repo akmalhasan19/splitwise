@@ -27,7 +27,9 @@ library;
 
 import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/expense.dart';
+import 'package:debt_splitter/core/models/expense_item.dart';
 import 'package:debt_splitter/core/models/expense_share.dart';
+import 'package:debt_splitter/core/models/expense_with_items.dart';
 import 'package:debt_splitter/core/models/expense_with_shares.dart';
 import 'package:debt_splitter/core/models/group.dart';
 import 'package:debt_splitter/core/models/user.dart';
@@ -48,7 +50,7 @@ class GroupSyncPayload {
 
   /// Versi format serialisasi saat ini. Penerima menolak payload dengan
   /// `schemaVersion` lebih baru dari versi ini (agar tidak salah tafsir).
-  static const int currentSchemaVersion = 1;
+  static const int currentSchemaVersion = 2;
 
   /// Versi format payload (untuk kompatibilitas ke depan).
   final int schemaVersion;
@@ -170,8 +172,21 @@ class GroupSyncPayload {
     if (expense.note != null && expense.note!.isNotEmpty) {
       map['n'] = expense.note;
     }
+    if (item.items.isNotEmpty) {
+      map['i'] = <Object?>[for (final entry in item.items) _itemToJson(entry)];
+    }
     return map;
   }
+
+  static Map<String, Object?> _itemToJson(ExpenseItemWithClaims entry) =>
+      <String, Object?>{
+        'id': entry.item.id,
+        'n': entry.item.name,
+        'p': entry.item.unitPrice,
+        'q': entry.item.quantity,
+        'o': entry.item.ordering,
+        'c': <Object?>[for (final id in entry.claimantIds) id],
+      };
 
   static Map<String, Object?> _shareToJson(ExpenseShare share) =>
       <String, Object?>{
@@ -233,6 +248,23 @@ class GroupSyncPayload {
       throw const FormatException('Field note harus bertipe string.');
     }
 
+    // Skema V2: detail item/claim (opsional — payload versi lama tanpa item).
+    final items = <ExpenseItemWithClaims>[];
+    final rawItems = map['i'];
+    if (rawItems != null) {
+      if (rawItems is! List) {
+        throw FormatException('Field "i" expense "$id" harus berupa daftar.');
+      }
+      final seenItemIds = <String>{};
+      for (final raw in rawItems) {
+        final entry = _itemFromJson(_asMap(raw, 'i'), memberIds);
+        if (!seenItemIds.add(entry.item.id)) {
+          throw FormatException('Item duplikat di expense "$id".');
+        }
+        items.add(entry);
+      }
+    }
+
     return ExpenseWithShares(
       expense: Expense(
         id: id,
@@ -244,6 +276,40 @@ class GroupSyncPayload {
         note: note as String?,
       ),
       shares: shares,
+      items: items,
+    );
+  }
+
+  static ExpenseItemWithClaims _itemFromJson(
+    Map<String, Object?> map,
+    Set<String> memberIds,
+  ) {
+    final id = _readString(map, 'id');
+    final claimantIds = <String>[];
+    for (final raw in _readList(map, 'c')) {
+      if (raw is! String || raw.isEmpty) {
+        throw FormatException('Claimant item "$id" harus string id user.');
+      }
+      if (!memberIds.contains(raw)) {
+        throw FormatException(
+          'Claimant "$raw" item "$id" bukan anggota grup.',
+        );
+      }
+      claimantIds.add(raw);
+    }
+    if (claimantIds.isEmpty) {
+      throw FormatException('Item "$id" tidak memiliki pengeklaim.');
+    }
+    return ExpenseItemWithClaims(
+      item: ExpenseItem(
+        id: id,
+        name: _readString(map, 'n'),
+        unitPrice: _readInt(map, 'p', min: 0),
+        quantity: _readInt(map, 'q', min: 1),
+        ordering: _readInt(map, 'o', min: 0),
+        expenseId: '',
+      ),
+      claimantIds: claimantIds,
     );
   }
 

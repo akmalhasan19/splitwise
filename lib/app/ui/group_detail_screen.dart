@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:debt_splitter/app/services/backup_service.dart';
 import 'package:debt_splitter/app/services/debt_splitter_service.dart';
 import 'package:debt_splitter/app/state/group_detail_store.dart';
+import 'package:debt_splitter/app/ui/item_expense_detail_sheet.dart';
 import 'package:debt_splitter/app/ui/qr_share_sheet.dart';
 import 'package:debt_splitter/app/ui/quick_entry_sheet.dart';
 import 'package:debt_splitter/app/ui/settle_up_tab.dart';
@@ -314,13 +315,22 @@ class _ExpenseTile extends StatelessWidget {
   final GroupDetailStore store;
   final ExpenseHistoryItem item;
 
+  bool get _isItemSplit => item.expense.splitType == ExpenseSplitType.item;
+
   @override
   Widget build(BuildContext context) {
     final expense = item.expense;
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-        child: Icon(Icons.payments_outlined),
+        backgroundColor: _isItemSplit
+            ? Theme.of(context).colorScheme.tertiaryContainer
+            : Theme.of(context).colorScheme.secondaryContainer,
+        child: Icon(
+          _isItemSplit ? Icons.receipt_long : Icons.payments_outlined,
+          color: _isItemSplit
+              ? Theme.of(context).colorScheme.onTertiaryContainer
+              : null,
+        ),
       ),
       title: Text(
         expense.note == null || expense.note!.isEmpty
@@ -329,7 +339,8 @@ class _ExpenseTile extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        '${item.paidByName} membayar · ${item.shareCount} orang · '
+        '${item.paidByName} membayar · '
+        '${_isItemSplit ? '${item.itemCount} item' : '${item.shareCount} orang'} · '
         '${_splitTypeLabel(expense.splitType)}',
       ),
       trailing: Column(
@@ -346,6 +357,9 @@ class _ExpenseTile extends StatelessWidget {
           ),
         ],
       ),
+      // Tap pada expense ITEM -> buka detail struk.
+      // Tap pada expense lain -> tidak ada aksi.
+      onTap: _isItemSplit ? () => _openItemDetail(context) : null,
       onLongPress: () => _confirmDelete(context),
     );
   }
@@ -354,7 +368,21 @@ class _ExpenseTile extends StatelessWidget {
     ExpenseSplitType.equal => 'sama rata',
     ExpenseSplitType.exact => 'nominal custom',
     ExpenseSplitType.percent => 'persen',
+    ExpenseSplitType.item => 'struk',
   };
+
+  Future<void> _openItemDetail(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ItemExpenseDetailSheet(
+        expense: item.expense,
+        store: store,
+      ),
+    );
+  }
 
   Future<void> _confirmDelete(BuildContext context) async {
     final ok = await showDialog<bool>(

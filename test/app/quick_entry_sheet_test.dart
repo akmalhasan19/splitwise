@@ -81,4 +81,32 @@ void main() {
       expect(find.text('Simpan'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'mode Struk: segmen membuka editor item (bukan blank)',
+    (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Grup Baru'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(0), 'Trip Bromo');
+      await tester.enterText(find.byType(TextFormField).at(1), 'Budi, Andi');
+      await tester.tap(find.text('Buat'));
+      await tester.pumpAndSettle();
+
+      // Buka quick-entry lalu pilih segmen "Struk".
+      await tester.tap(find.byTooltip('Tambah pengeluaran'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Struk'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Daftar item struk'), findsOneWidget);
+      expect(find.text('Tambah item'), findsWidgets);
+      expect(
+        find.text('Belum ada item. Tambahkan menu dari struk.'),
+        findsOneWidget,
+      );
+    },
+  );
 }

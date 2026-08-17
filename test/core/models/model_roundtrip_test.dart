@@ -95,11 +95,12 @@ void main() {
   });
 
   group('ExpenseSplitType', () {
-    test('nilai DB = EQUAL/EXACT/PERCENT (selaras CHECK constraint)', () {
-      expect(ExpenseSplitType.values, hasLength(3));
+    test('nilai DB = EQUAL/EXACT/PERCENT/ITEM (selaras CHECK constraint V2)', () {
+      expect(ExpenseSplitType.values, hasLength(4));
       expect(ExpenseSplitType.equal.dbValue, 'EQUAL');
       expect(ExpenseSplitType.exact.dbValue, 'EXACT');
       expect(ExpenseSplitType.percent.dbValue, 'PERCENT');
+      expect(ExpenseSplitType.item.dbValue, 'ITEM');
     });
 
     test('fromDbValue round-trip seluruh nilai valid', () {

@@ -16,16 +16,24 @@
 library;
 
 import 'package:debt_splitter/core/db/app_database.dart';
+import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/expense.dart';
+import 'package:debt_splitter/core/models/expense_item.dart';
 import 'package:debt_splitter/core/models/expense_share.dart';
+import 'package:debt_splitter/core/models/expense_with_items.dart';
+import 'package:debt_splitter/core/models/item_claim.dart';
+import 'package:debt_splitter/core/money/item_bill_splitter.dart';
 import 'package:debt_splitter/core/sync/full_backup_payload.dart';
 import 'package:debt_splitter/core/sync/group_sync_payload.dart';
 import 'package:debt_splitter/features/expenses/data/expense_dao.dart';
+import 'package:debt_splitter/features/expenses/data/expense_item_dao.dart';
 import 'package:debt_splitter/features/expenses/data/expense_share_dao.dart';
+import 'package:debt_splitter/features/expenses/data/item_claim_dao.dart';
 import 'package:debt_splitter/features/groups/data/group_dao.dart';
 import 'package:debt_splitter/features/groups/data/group_member_dao.dart';
 import 'package:debt_splitter/features/users/data/user_dao.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 /// Ringkasan hasil import (jumlah perubahan per kategori).
 class SyncImportResult {
@@ -38,6 +46,7 @@ class SyncImportResult {
     this.expensesAdded = 0,
     this.expensesUpdated = 0,
     this.sharesInserted = 0,
+    this.itemsInserted = 0,
   });
 
   final int usersAdded;
@@ -49,6 +58,9 @@ class SyncImportResult {
   final int expensesUpdated;
   final int sharesInserted;
 
+  /// Jumlah baris `expense_items` yang ditulis (skema V2).
+  final int itemsInserted;
+
   /// Jumlah total perubahan yang benar-benar ditulis ke DB (0 = tidak ada).
   int get totalChanges =>
       usersAdded +
@@ -58,7 +70,8 @@ class SyncImportResult {
       membersAdded +
       expensesAdded +
       expensesUpdated +
-      sharesInserted;
+      sharesInserted +
+      itemsInserted;
 
   SyncImportResult operator +(SyncImportResult other) => SyncImportResult(
     usersAdded: usersAdded + other.usersAdded,
@@ -69,19 +82,25 @@ class SyncImportResult {
     expensesAdded: expensesAdded + other.expensesAdded,
     expensesUpdated: expensesUpdated + other.expensesUpdated,
     sharesInserted: sharesInserted + other.sharesInserted,
+    itemsInserted: itemsInserted + other.itemsInserted,
   );
 }
 
 class SyncImporter {
-  SyncImporter(this._appDatabase);
+  SyncImporter(this._appDatabase, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
   final AppDatabase _appDatabase;
+  final Uuid _uuid;
 
   static const UserDao _userDao = UserDao();
   static const GroupDao _groupDao = GroupDao();
   static const GroupMemberDao _memberDao = GroupMemberDao();
   static const ExpenseDao _expenseDao = ExpenseDao();
   static const ExpenseShareDao _shareDao = ExpenseShareDao();
+
+  // Skema V2 — DAO detail item bilah "Struk".
+  static const ExpenseItemDao _itemDao = ExpenseItemDao();
+  static const ItemClaimDao _claimDao = ItemClaimDao();
 
   /// Meng-merge satu [GroupSyncPayload] ke database lokal (satu transaksi).
   Future<SyncImportResult> importGroupPayload(
@@ -162,30 +181,51 @@ class SyncImporter {
       }
     }
 
-    // 4. Expense + share: insert bila baru; update + ganti share bila data
-    //    berbeda. Data identik dilewati (idempoten — tidak menulis ulang).
+    // 4. Expense + share + item/claim: insert bila baru; update bila berbeda.
+    //    Data identik dilewati (idempoten — tidak menulis ulang).
+    //
+    //    ⚠️ Filosofi konservasi (sesuai arsitektur V2):
+    //    Untuk expense bertipe ITEM, shares TIDAK diambil dari payload —
+    //    melainkan di-DERIVE ulang dari item+claims via ItemBillSplitter.
+    //    Ini menjamin sum(shares) == sum(item.unitPrice*qty) == expense.amount
+    //    selalu konsisten, bahkan bila payload datang dari versi lain.
     var expensesAdded = 0;
     var expensesUpdated = 0;
     var sharesInserted = 0;
+    var itemsInserted = 0;
     for (final item in payload.expenses) {
       final expense = item.expense;
+      final isItemSplit = expense.splitType == ExpenseSplitType.item;
+
+      // Untuk expense ITEM: compute shares dari item+claims (bukan dari payload).
+      final sharesToWrite = isItemSplit && item.items.isNotEmpty
+          ? _deriveSharesFromItems(expense.id, item.items)
+          : item.shares;
+
       final existing = await _expenseDao.getById(txn, expense.id);
       if (existing == null) {
         await _expenseDao.insert(txn, expense);
-        for (final share in item.shares) {
+        for (final share in sharesToWrite) {
           await _shareDao.insert(txn, share.withExpenseId(expense.id));
+        }
+        if (item.items.isNotEmpty) {
+          itemsInserted += await _upsertItems(txn, expense.id, item.items);
         }
         expensesAdded++;
-        sharesInserted += item.shares.length;
+        sharesInserted += sharesToWrite.length;
       } else if (!_sameExpense(existing, expense) ||
-          !await _sameShares(txn, expense.id, item.shares)) {
+          !await _sameShares(txn, expense.id, sharesToWrite) ||
+          !await _sameItems(txn, expense.id, item.items)) {
         await _expenseDao.update(txn, expense);
         await _shareDao.deleteByExpense(txn, expense.id);
-        for (final share in item.shares) {
+        for (final share in sharesToWrite) {
           await _shareDao.insert(txn, share.withExpenseId(expense.id));
         }
+        if (item.items.isNotEmpty) {
+          itemsInserted += await _upsertItems(txn, expense.id, item.items);
+        }
         expensesUpdated++;
-        sharesInserted += item.shares.length;
+        sharesInserted += sharesToWrite.length;
       }
     }
 
@@ -198,6 +238,7 @@ class SyncImporter {
       expensesAdded: expensesAdded,
       expensesUpdated: expensesUpdated,
       sharesInserted: sharesInserted,
+      itemsInserted: itemsInserted,
     );
   }
 
@@ -237,6 +278,97 @@ class SyncImporter {
     return true;
   }
 
+  /// Menulis ulang detail item & claim sebuah expense (hapus lalu insert).
+  /// Dipanggil dari dalam transaksi import. Mengembalikan jumlah item yang
+  /// diinsert (untuk statistik `SyncImportResult.itemsInserted`).
+  static Future<int> _upsertItems(
+    Transaction txn,
+    String expenseId,
+    List<ExpenseItemWithClaims> items,
+  ) async {
+    if (items.isEmpty) {
+      return 0;
+    }
+    await _claimDao.deleteByExpense(txn, expenseId);
+    await _itemDao.deleteByExpense(txn, expenseId);
+    final owned = <ExpenseItem>[
+      for (final entry in items) entry.item.withExpenseId(expenseId),
+    ];
+    await _itemDao.insertAll(txn, owned);
+    final claims = <ItemClaim>[
+      for (var i = 0; i < items.length; i++)
+        for (final userId in items[i].claimantIds)
+          ItemClaim(expenseItemId: owned[i].id, userId: userId),
+    ];
+    await _claimDao.insertAll(txn, claims);
+    return owned.length;
+  }
+
+  /// Menderivasi daftar [ExpenseShare] dari item+claims via [ItemBillSplitter].
+  ///
+  /// Ini adalah sumber kebenaran tunggal untuk expense bertipe ITEM — shares
+  /// dari payload diabaikan dan dihitung ulang agar konservasi terjamin.
+  /// `expenseId` dikosongkan di sini dan diisi saat insert lewat `withExpenseId`.
+  List<ExpenseShare> _deriveSharesFromItems(
+    String expenseId,
+    List<ExpenseItemWithClaims> items,
+  ) {
+    final lines = [
+      for (final entry in items)
+        ItemBillLine(
+          id: entry.item.id,
+          unitPrice: entry.item.unitPrice,
+          quantity: entry.item.quantity,
+          claimantIds: entry.claimantIds,
+        ),
+    ];
+    final shareMap = ItemBillSplitter.allocate(lines);
+    return [
+      for (final entry in shareMap.entries)
+        ExpenseShare(
+          id: _uuid.v4(),
+          expenseId: expenseId,
+          userId: entry.key,
+          shareAmount: entry.value,
+        ),
+    ];
+  }
+
+  /// `true` bila item/claim di DB untuk [expenseId] identik dengan [items]
+  /// (nama, harga, quantity, urutan, dan set claimant) — id tidak dibandingkan.
+  static Future<bool> _sameItems(
+    DatabaseExecutor db,
+    String expenseId,
+    List<ExpenseItemWithClaims> items,
+  ) async {
+    if (items.isEmpty) {
+      // Tidak ada item: dianggap identik bila DB juga tanpa item.
+      return (await _itemDao.getByExpense(db, expenseId)).isEmpty;
+    }
+    final stored = await _itemDao.getByExpense(db, expenseId);
+    if (stored.length != items.length) {
+      return false;
+    }
+    final claimants = await _claimDao.getClaimantsByExpense(db, expenseId);
+
+    final storedKeys = [
+      for (final it in stored)
+        '${it.name}|${it.unitPrice}|${it.quantity}|${it.ordering}'
+            '|${(claimants[it.id] ?? const <String>[]).toList()..sort()}',
+    ]..sort();
+    final payloadKeys = [
+      for (final entry in items)
+        '${entry.item.name}|${entry.item.unitPrice}|${entry.item.quantity}'
+            '|${entry.item.ordering}|${List<String>.of(entry.claimantIds)..sort()}',
+    ]..sort();
+    for (var i = 0; i < storedKeys.length; i++) {
+      if (storedKeys[i] != payloadKeys[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Validasi cepat payload yang dibentuk secara programatik (bukan dari
   /// `fromJson`): pembayar & penerima share harus anggota, konservasi uang.
   static void _validatePayload(GroupSyncPayload payload) {
@@ -267,6 +399,22 @@ class SyncImporter {
           'Konservasi uang gagal di expense "${expense.id}": '
           'total share ($sum) != amount (${expense.amount}).',
         );
+      }
+      for (final entry in item.items) {
+        if (entry.claimantIds.isEmpty) {
+          throw ArgumentError(
+            'Item "${entry.item.id}" pada expense "${expense.id}" '
+            'tidak memiliki pengeklaim.',
+          );
+        }
+        for (final claimant in entry.claimantIds) {
+          if (!memberIds.contains(claimant)) {
+            throw ArgumentError(
+              'Claimant "$claimant" item "${entry.item.id}" bukan anggota grup '
+              'payload.',
+            );
+          }
+        }
       }
     }
   }

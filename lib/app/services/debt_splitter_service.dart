@@ -17,6 +17,7 @@ import 'package:debt_splitter/core/db/app_database.dart';
 import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/expense.dart';
 import 'package:debt_splitter/core/models/expense_share.dart';
+import 'package:debt_splitter/core/models/expense_with_items.dart';
 import 'package:debt_splitter/core/models/expense_with_shares.dart';
 import 'package:debt_splitter/core/models/group.dart';
 import 'package:debt_splitter/core/models/user.dart';
@@ -155,6 +156,12 @@ class DebtSplitterService {
   Future<List<ExpenseWithShares>> getExpensesByGroup(String groupId) =>
       _expenseRepo.getExpenseWithSharesByGroup(groupId);
 
+  /// Seluruh expense milik grup beserta item + claimant-nya (skema V2).
+  /// Diperlukan store untuk menampilkan `itemCount` di riwayat tanpa query
+  /// tambahan — dipakai [GroupDetailStore.load].
+  Future<List<ExpenseWithShares>> getExpensesByGroupWithItems(String groupId) =>
+      _expenseRepo.getExpenseWithSharesByGroupWithItems(groupId);
+
   /// Membuat expense dengan equal-split ke seluruh anggota grup. Kembali ke
   /// `ExpenseRepository.createEqualSplitExpense` (sisa 1 Rupiah didistribusi).
   Future<Expense> addEqualSplitExpense({
@@ -204,6 +211,30 @@ class DebtSplitterService {
 
   Future<void> deleteExpense(String id) => _expenseRepo.deleteExpense(id);
 
+  /// Mengambil satu expense beserta seluruh item + claimant-nya (skema V2).
+  /// Untuk expense non-ITEM, `items` kosong.
+  Future<ExpenseWithItems> getExpenseWithItems(String expenseId) =>
+      _expenseRepo.getExpenseWithItems(expenseId);
+
+  /// Membuat expense berbasis item "Struk" (ITEM). [items] = daftar item
+  /// beserta claimants (siapa yang makan); nominal expense & pembagian per
+  /// orang dihitung otomatis via `ItemBillSplitter` (konservasi dijamin).
+  Future<ExpenseWithItems> addItemSplitExpense({
+    required String groupId,
+    required String paidBy,
+    required List<ExpenseItemWithClaims> items,
+    String? note,
+    int? date,
+  }) {
+    return _expenseRepo.createItemSplitExpense(
+      groupId: groupId,
+      paidBy: paidBy,
+      items: items,
+      date: date ?? _nowSeconds(),
+      note: note,
+    );
+  }
+
   // ----------- Settle Up & Share -----------
 
   /// Menghitung rekomendasi pelunasan (output greedy engine) untuk satu grup.
@@ -246,7 +277,9 @@ class DebtSplitterService {
       throw StateError('Grup "$groupId" tidak ditemukan.');
     }
     final members = await _groupRepo.getGroupMembers(groupId);
-    final expenses = await _expenseRepo.getExpenseWithSharesByGroup(groupId);
+    final expenses = await _expenseRepo.getExpenseWithSharesByGroupWithItems(
+      groupId,
+    );
     return GroupSyncPayload(
       schemaVersion: GroupSyncPayload.currentSchemaVersion,
       exportedAt: _nowSeconds(),
