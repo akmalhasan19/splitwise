@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/expense.dart';
 import 'package:debt_splitter/core/models/expense_share.dart';
 import 'package:debt_splitter/core/models/expense_with_shares.dart';

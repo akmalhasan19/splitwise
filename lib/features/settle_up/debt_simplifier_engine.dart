@@ -4,7 +4,7 @@
 /// menghasilkan daftar transaksi rekomendasi pelunasan dengan jumlah transaksi
 /// seminimal mungkin.
 ///
-/// Algoritma (O(n log n), memakai dua Max-Heap dari `dart:collection`):
+/// Algoritma (O(n log n), memakai dua Max-Heap dari `package:collection`):
 /// 1. Pisahkan **Kreditur** (`balance > 0`) dan **Debitur** (`balance < 0`).
 /// 2. Ambil kreditur dengan piutang terbesar (`max_creditor`) dan debitur
 ///    dengan `|utang|` terbesar (`max_debtor`).
@@ -21,8 +21,7 @@
 /// (lexicographic) diproses duluan — aman untuk unit-test snapshot.
 library;
 
-import 'dart:collection';
-
+import 'package:collection/collection.dart';
 import 'package:debt_splitter/core/money/money_amount.dart';
 
 /// Rekomendasi satu transaksi pelunasan keluaran greedy engine.

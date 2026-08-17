@@ -26,6 +26,7 @@ dependencies:
   mobile_scanner: ^7.4.0     # Scanner QR/Barcode (on-device ML, offline)
 
   # ================= Utility =================
+  collection: ^1.19.1         # PriorityQueue (heap) untuk settle-up engine
   uuid: ^4.6.0               # UUID v4 untuk Primary Key (id: STRING)
 
 dev_dependencies:

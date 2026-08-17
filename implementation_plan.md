@@ -72,25 +72,25 @@
 
 ### 📌 Minggu 2: Engine Net Balance & Algoritma Penyederhanaan Utang (Greedy)
 
-- [ ] **1. Kalkulasi Net Balance**
-  - [ ] Buat modul kalkulasi balance per user dalam grup: `net_balance[user] = total_paid - total_share`
-- [ ] **2. Implementasi Greedy Settlement Engine ($O(n \log n)$)**
-  - [ ] Implementasi pemisahan kelompok **Kreditur** (`balance > 0`) dan **Debitur** (`balance < 0`)
-  - [ ] Setup **Max-Heap Kreditur** (berdasarkan nominal piutang)
-  - [ ] Setup **Max-Heap Debitur** (berdasarkan nilai mutlak `|balance|` utang)
-  - [ ] Implementasi Loop Algoritma Greedy:
-    - [ ] Ambil Kreditur terbesar (`max_creditor`) dan Debitur terbesar (`max_debtor`)
-    - [ ] Hitung `settle_amount = min(max_creditor.balance, max_debtor.abs_balance)`
-    - [ ] Buat objek transaksi rekomendasi pelunasan: `max_debtor -> max_creditor: settle_amount`
-    - [ ] Update saldo kedua pihak (jika sisa $> 0$, masukkan kembali ke heap)
-    - [ ] Ulangi loop hingga seluruh saldo net bernilai 0
-- [ ] **3. Unit Testing Core Logic (Wajib 100% Coverage)**
-  - [ ] Unit Test Kasus 1: Transaksi melingkar 3+ orang ($A \rightarrow B \rightarrow C \rightarrow A$)
-  - [ ] Unit Test Kasus 2: Penanganan sisa ganjil pembulatan *equal split*
-  - [ ] Unit Test Kasus 3: Kasus 1 orang membayarkan seluruh transaksi grup
-- [ ] **4. Deliverables Minggu 2**
-  - [ ] Modul `DebtSimplifierEngine` terisolasi dan *pure function* (bebas side-effect)
-  - [ ] Suite unit test untuk *edge cases* kalkulasi keuangan lulus 100%
+- [x] **1. Kalkulasi Net Balance**
+  - [x] Buat modul kalkulasi balance per user dalam grup: `net_balance[user] = total_paid - total_share`
+- [x] **2. Implementasi Greedy Settlement Engine ($O(n \log n)$)**
+  - [x] Implementasi pemisahan kelompok **Kreditur** (`balance > 0`) dan **Debitur** (`balance < 0`)
+  - [x] Setup **Max-Heap Kreditur** (berdasarkan nominal piutang)
+  - [x] Setup **Max-Heap Debitur** (berdasarkan nilai mutlak `|balance|` utang)
+  - [x] Implementasi Loop Algoritma Greedy:
+    - [x] Ambil Kreditur terbesar (`max_creditor`) dan Debitur terbesar (`max_debtor`)
+    - [x] Hitung `settle_amount = min(max_creditor.balance, max_debtor.abs_balance)`
+    - [x] Buat objek transaksi rekomendasi pelunasan: `max_debtor -> max_creditor: settle_amount`
+    - [x] Update saldo kedua pihak (jika sisa $> 0$, masukkan kembali ke heap)
+    - [x] Ulangi loop hingga seluruh saldo net bernilai 0
+- [x] **3. Unit Testing Core Logic (Wajib 100% Coverage)**
+  - [x] Unit Test Kasus 1: Transaksi melingkar 3+ orang ($A \rightarrow B \rightarrow C \rightarrow A$)
+  - [x] Unit Test Kasus 2: Penanganan sisa ganjil pembulatan *equal split*
+  - [x] Unit Test Kasus 3: Kasus 1 orang membayar seluruh transaksi grup
+- [x] **4. Deliverables Minggu 2**
+  - [x] Modul `DebtSimplifierEngine` terisolasi dan *pure function* (bebas side-effect)
+  - [x] Suite unit test untuk *edge cases* kalkulasi keuangan lulus 100%
 
 ---
 
