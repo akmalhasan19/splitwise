@@ -117,11 +117,15 @@ class _GroupDetailScaffold extends StatelessWidget {
   }
 
   Future<void> _openQuickEntry(BuildContext context) async {
+    final store = context.read<GroupDetailStore>();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => const QuickEntrySheet(),
+      // Store di-inject eksplisit: route overlay tidak mewarisi provider
+      // dari route detail grup. Tanpa ini, sheet melempar
+      // `ProviderNotFoundException` dan tampil kosong.
+      builder: (_) => QuickEntrySheet(store: store),
     );
   }
 

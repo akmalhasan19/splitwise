@@ -11,7 +11,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
 import 'package:debt_splitter/app/state/group_detail_store.dart';
 import 'package:debt_splitter/core/money/money_amount.dart';
@@ -20,7 +19,16 @@ import 'package:debt_splitter/core/utils/money_formatter.dart';
 enum _SplitMode { equal, exact }
 
 class QuickEntrySheet extends StatefulWidget {
-  const QuickEntrySheet({super.key});
+  const QuickEntrySheet({required this.store, super.key});
+
+  /// Store detail grup yang dipakai untuk membaca daftar anggota & menyimpan
+  /// pengeluaran baru. Disuntikkan eksplisit karena sheet di-push sebagai
+  /// route overlay via `showModalBottomSheet` — route sibling yang **tidak
+  /// mewarisi** `ChangeNotifierProvider<GroupDetailStore>` dari route detail
+  /// grup. Tanpa injeksi ini, `context.watch<GroupDetailStore>()` di dalam
+  /// overlay melempar `ProviderNotFoundException` dan sheet tampak kosong.
+  /// Pola yang sama dipakai `CreateGroupDialog` (lihat catatannya).
+  final GroupDetailStore store;
 
   @override
   State<QuickEntrySheet> createState() => _QuickEntrySheetState();
@@ -49,7 +57,7 @@ class _QuickEntrySheetState extends State<QuickEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<GroupDetailStore>();
+    final store = widget.store;
     final members = store.members;
     _paidById ??= members.isNotEmpty ? members.first.id : null;
 
@@ -204,7 +212,7 @@ class _QuickEntrySheetState extends State<QuickEntrySheet> {
   }
 
   Future<void> _submit() async {
-    final store = context.read<GroupDetailStore>();
+    final store = widget.store;
     if (store.members.isEmpty) {
       setState(() => _error = 'Grup belum memiliki anggota.');
       return;
