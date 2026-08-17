@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:debt_splitter/app/services/backup_service.dart';
 import 'package:debt_splitter/app/services/debt_splitter_service.dart';
 import 'package:debt_splitter/app/services/share_service.dart';
 import 'package:debt_splitter/app/state/group_list_store.dart';
@@ -55,6 +56,7 @@ class _DebtSplitterAppState extends State<DebtSplitterApp> {
           providers: [
             Provider<DebtSplitterService>.value(value: boot.service),
             Provider<ShareService>.value(value: const ShareService()),
+            Provider<BackupService>.value(value: const BackupService()),
             ChangeNotifierProvider(create: (_) => GroupListStore(boot.service)),
           ],
           child: MaterialApp(

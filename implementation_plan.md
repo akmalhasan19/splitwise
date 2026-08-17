@@ -116,21 +116,21 @@
 
 ### 📌 Minggu 4: Advanced Offline Features (QR Sync / Export) & Polish
 
-- [ ] **1. QR Code Offline Peer-to-Peer Sync**
-  - [ ] Buat fungsi serialisasi data grup & transaksi ke format JSON ringkas
-  - [ ] Implementasi kompresi payload JSON via `zlib`/`gzip` & konversi ke String Base64
-  - [ ] Implementasi UI Generator QR Code
-  - [ ] Implementasi UI Scanner QR Code untuk import/sinkronisasi data secara *offline*
-- [ ] **2. Backup & Export/Import**
-  - [ ] Fitur Export DB / Data Grup ke file JSON lokal
-  - [ ] Fitur Import data dari file JSON lokal
-  - [ ] Fitur Cetak PDF *summary report*
-- [ ] **3. Testing di Real Device & Quality Assurance**
-  - [ ] Audit penggunaan memori & pengujian performa UI pada perangkat berspesifikasi rendah
-  - [ ] Verifikasi ulang penanganan *edge-cases* dan UI *responsiveness*
-- [ ] **4. Deliverables Minggu 4**
-  - [ ] Build APK / IPA *Release Candidate* (RC)
-  - [ ] Dokumentasi penggunaan & alur eksekusi aplikasi
+- [x] **1. QR Code Offline Peer-to-Peer Sync**
+  - [x] Buat fungsi serialisasi data grup & transaksi ke format JSON ringkas
+  - [x] Implementasi kompresi payload JSON via `zlib`/`gzip` & konversi ke String Base64
+  - [x] Implementasi UI Generator QR Code
+  - [x] Implementasi UI Scanner QR Code untuk import/sinkronisasi data secara *offline*
+- [x] **2. Backup & Export/Import**
+  - [x] Fitur Export DB / Data Grup ke file JSON lokal
+  - [x] Fitur Import data dari file JSON lokal
+  - [x] Fitur Cetak PDF *summary report*
+- [x] **3. Testing di Real Device & Quality Assurance**
+  - [x] Audit penggunaan memori & pengujian performa UI pada perangkat berspesifikasi rendah
+  - [x] Verifikasi ulang penanganan *edge-cases* dan UI *responsiveness*
+- [x] **4. Deliverables Minggu 4**
+  - [x] Build APK / IPA *Release Candidate* (RC)
+  - [x] Dokumentasi penggunaan & alur eksekusi aplikasi
 
 ---
 

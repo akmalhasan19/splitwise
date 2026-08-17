@@ -233,7 +233,20 @@ class ExpenseRepository {
     }
   }
 
-  /// Mengisi `expenseId` pada setiap share menjadi milik expense tsb.
+  /// Mengisi `expenseId` pada setiap share menjadi milik expense tsb, dan
+  /// memastikan setiap share memiliki UUID v4 unik sebagai Primary Key.
+  ///
+  /// Share yang dipanggil dengan `id` kosong (mis. path EXACT dari UI) akan
+  /// diberi UUID baru — menjamin `expense_shares.id` selalu UUID (kontrak
+  /// skema & aman untuk serialisasi payload sync).
   List<ExpenseShare> _ownShares(String expenseId, List<ExpenseShare> shares) =>
-      shares.map((share) => share.withExpenseId(expenseId)).toList();
+      shares.map((share) {
+        final owned = share.id.isEmpty ? _uuid.v4() : share.id;
+        return ExpenseShare(
+          id: owned,
+          expenseId: expenseId,
+          userId: share.userId,
+          shareAmount: share.shareAmount,
+        );
+      }).toList();
 }

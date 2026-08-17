@@ -9,8 +9,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:debt_splitter/app/services/backup_service.dart';
 import 'package:debt_splitter/app/services/debt_splitter_service.dart';
 import 'package:debt_splitter/app/state/group_detail_store.dart';
+import 'package:debt_splitter/app/ui/qr_share_sheet.dart';
 import 'package:debt_splitter/app/ui/quick_entry_sheet.dart';
 import 'package:debt_splitter/app/ui/settle_up_tab.dart';
 import 'package:debt_splitter/app/widgets/user_avatar.dart';
@@ -18,6 +20,7 @@ import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/user.dart';
 import 'package:debt_splitter/core/utils/date_formatter.dart';
 import 'package:debt_splitter/core/utils/money_formatter.dart';
+import 'package:debt_splitter/features/report/pdf_summary_generator.dart';
 
 class GroupDetailScreen extends StatelessWidget {
   const GroupDetailScreen({
@@ -52,6 +55,35 @@ class _GroupDetailScaffold extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text(groupName),
+          actions: [
+            PopupMenuButton<String>(
+              tooltip: 'Sinkronisasi & laporan',
+              onSelected: (value) => _onMenuSelected(context, value),
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'qr',
+                  child: ListTile(
+                    leading: Icon(Icons.qr_code_2),
+                    title: Text('Bagikan via QR (sync offline)'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'export',
+                  child: ListTile(
+                    leading: Icon(Icons.upload_file),
+                    title: Text('Export grup (JSON)'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'pdf',
+                  child: ListTile(
+                    leading: Icon(Icons.picture_as_pdf),
+                    title: Text('Cetak PDF ringkasan'),
+                  ),
+                ),
+              ],
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.receipt_long), text: 'Riwayat'),
@@ -91,6 +123,71 @@ class _GroupDetailScaffold extends StatelessWidget {
       useSafeArea: true,
       builder: (_) => const QuickEntrySheet(),
     );
+  }
+
+  void _onMenuSelected(BuildContext context, String value) {
+    final groupId = context.read<GroupDetailStore>().groupId;
+    switch (value) {
+      case 'qr':
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (_) => QrShareSheet(groupId: groupId),
+        );
+      case 'export':
+        _exportGroupJson(context, groupId);
+      case 'pdf':
+        _printPdf(context, groupId);
+    }
+  }
+
+  /// Export data satu grup ke file JSON lalu buka Share Sheet.
+  Future<void> _exportGroupJson(BuildContext context, String groupId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final service = context.read<DebtSplitterService>();
+      final backupService = context.read<BackupService>();
+      final json = await service.exportGroupJsonString(groupId);
+      final filename = 'debt_splitter_group_${_dateStamp()}.json';
+      final file = await backupService.writeJsonToTempFile(filename, json);
+      await backupService.shareFiles(
+        [file],
+        subject: 'Export grup Debt-Splitter',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Gagal export grup: $e')),
+      );
+    }
+  }
+
+  /// Membuat PDF ringkasan grup lalu membuka Share Sheet.
+  Future<void> _printPdf(BuildContext context, String groupId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final service = context.read<DebtSplitterService>();
+      final backupService = context.read<BackupService>();
+      final snapshot = await service.getSummarySnapshot(groupId);
+      final bytes = await PdfSummaryGenerator.generate(snapshot);
+      final filename = 'debt_splitter_summary_${_dateStamp()}.pdf';
+      final file = await backupService.writeBytesToTempFile(filename, bytes);
+      await backupService.shareFiles(
+        [file],
+        subject: 'Ringkasan: ${snapshot.group.name}',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Gagal membuat PDF: $e')),
+      );
+    }
+  }
+
+  static String _dateStamp() {
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${now.year}${two(now.month)}${two(now.day)}'
+        '_${two(now.hour)}${two(now.minute)}';
   }
 }
 

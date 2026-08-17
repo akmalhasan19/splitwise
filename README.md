@@ -10,6 +10,7 @@ server, tanpa login/auth — dilengkapi algoritma **greedy** untuk menyederhanak
 - [ide_project.md](ide_project.md) — ide & spesifikasi produk
 - [docs/architecture.md](docs/architecture.md) — 📐 guideline arsitektur & tech stack
 - [docs/git_workflow.md](docs/git_workflow.md) — 🔀 git workflow & branch protection
+- [docs/user_guide.md](docs/user_guide.md) — 📱 dokumentasi penggunaan & alur eksekusi aplikasi
 
 ## Tech Stack
 
@@ -43,5 +44,8 @@ flutter run
 
 - ☑ **Phase 1 Task 1** — Guideline Arsitektur & Tech Stack *(selesai)*
 - ☑ **Phase 1 Task 2** — Implementasi Skema Data Lokal *(selesai)*
-- ☑ **Phase 2 Minggu 1 Task 1** — Setup Proyek, Data Layer & CRUD Core *(selesai: Git repo + struktur folder, AppDatabase/migration, DAO & Repository User/Group/Expense/ExpenseShare, input validator & equal split helper, unit test 100% lulus)*
-- ☐ Phase 2 Minggu 1 Task 2 — ... *(berikutnya)*
+- ☑ **Phase 2 Minggu 1** — Setup Proyek, Data Layer & CRUD Core *(selesai)*
+- ☑ **Phase 2 Minggu 2** — Engine Net Balance & Greedy Settlement *(selesai)*
+- ☑ **Phase 2 Minggu 3** — UI/UX & WhatsApp Share *(selesai)*
+- ☑ **Phase 2 Minggu 4** — Advanced Offline Features & Polish *(selesai: QR sync P2P (generate/scan + gzip/Base64 payload), backup export/import JSON, PDF summary report, unit test 189 lulus, APK release candidate dibangun)*
+- ☐ Phase 3 — Final Quality Control & Developer Checklist *(berikutnya)*

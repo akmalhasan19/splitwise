@@ -11,6 +11,8 @@
 /// [AppDatabase] / repository yang sudah ada.
 library;
 
+import 'dart:convert';
+
 import 'package:debt_splitter/core/db/app_database.dart';
 import 'package:debt_splitter/core/db/local_schema.dart';
 import 'package:debt_splitter/core/models/expense.dart';
@@ -19,11 +21,14 @@ import 'package:debt_splitter/core/models/expense_with_shares.dart';
 import 'package:debt_splitter/core/models/group.dart';
 import 'package:debt_splitter/core/models/user.dart';
 import 'package:debt_splitter/core/money/money_amount.dart';
+import 'package:debt_splitter/core/sync/full_backup_payload.dart';
+import 'package:debt_splitter/core/sync/group_sync_payload.dart';
 import 'package:debt_splitter/features/expenses/data/expense_repository.dart';
 import 'package:debt_splitter/features/groups/data/group_repository.dart';
 import 'package:debt_splitter/features/settle_up/debt_simplifier_engine.dart';
 import 'package:debt_splitter/features/settle_up/net_balance_calculator.dart';
 import 'package:debt_splitter/features/share/whatsapp_summary_generator.dart';
+import 'package:debt_splitter/features/sync/data/sync_importer.dart';
 import 'package:debt_splitter/features/users/data/user_repository.dart';
 
 /// Ringkasan grup untuk Dashboard (Daftar Grup & total saldo per grup).
@@ -49,11 +54,13 @@ class DebtSplitterService {
   DebtSplitterService(AppDatabase db)
     : _groupRepo = GroupRepository(db),
       _userRepo = UserRepository(db),
-      _expenseRepo = ExpenseRepository(db);
+      _expenseRepo = ExpenseRepository(db),
+      _syncImporter = SyncImporter(db);
 
   final GroupRepository _groupRepo;
   final UserRepository _userRepo;
   final ExpenseRepository _expenseRepo;
+  final SyncImporter _syncImporter;
 
   // ----------- Groups -----------
 
@@ -227,6 +234,78 @@ class DebtSplitterService {
       settlements: DebtSimplifierEngine.settle(balances),
       totalExpenseAmount: total,
     );
+  }
+
+  // ----------- Sync / Backup (Phase 2, Minggu 4) -----------
+
+  /// Membangun [GroupSyncPayload] (grup + anggota + seluruh transaksi) untuk
+  /// sinkronisasi P2P offline via QR atau export JSON.
+  Future<GroupSyncPayload> buildGroupSyncPayload(String groupId) async {
+    final group = await _groupRepo.getGroupById(groupId);
+    if (group == null) {
+      throw StateError('Grup "$groupId" tidak ditemukan.');
+    }
+    final members = await _groupRepo.getGroupMembers(groupId);
+    final expenses = await _expenseRepo.getExpenseWithSharesByGroup(groupId);
+    return GroupSyncPayload(
+      schemaVersion: GroupSyncPayload.currentSchemaVersion,
+      exportedAt: _nowSeconds(),
+      group: group,
+      members: members,
+      expenses: expenses,
+    );
+  }
+
+  /// Meng-merge payload hasil scan QR / import JSON ke database lokal
+  /// (idempoten, dilindungi UUID — lihat [SyncImporter]).
+  Future<SyncImportResult> importGroupSyncPayload(
+    GroupSyncPayload payload,
+  ) =>
+      _syncImporter.importGroupPayload(payload);
+
+  /// String JSON backup penuh (seluruh grup) untuk file export lokal.
+  Future<String> exportAllDataJsonString() async {
+    final groups = await _groupRepo.getAllGroups();
+    final payloads = <GroupSyncPayload>[];
+    for (final group in groups) {
+      payloads.add(await buildGroupSyncPayload(group.id));
+    }
+    final backup = FullBackupPayload(
+      schemaVersion: FullBackupPayload.currentSchemaVersion,
+      exportedAt: _nowSeconds(),
+      groups: payloads,
+    );
+    return const JsonEncoder.withIndent('  ').convert(backup.toJson());
+  }
+
+  /// String JSON backup satu grup (untuk export per-grup).
+  Future<String> exportGroupJsonString(String groupId) async {
+    final payload = await buildGroupSyncPayload(groupId);
+    return const JsonEncoder.withIndent('  ').convert(payload.toJson());
+  }
+
+  /// Meng-parse string JSON backup penuh lalu meng-merge ke DB lokal.
+  Future<SyncImportResult> importFullBackupJsonString(String raw) async {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('File backup bukan objek JSON.');
+    }
+    final backup = FullBackupPayload.fromJson(
+      Map<String, Object?>.from(decoded),
+    );
+    return _syncImporter.importFullBackup(backup);
+  }
+
+  /// Meng-parse string JSON payload grup lalu meng-merge ke DB lokal.
+  Future<SyncImportResult> importGroupJsonString(String raw) async {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('Payload grup bukan objek JSON.');
+    }
+    final payload = GroupSyncPayload.fromJson(
+      Map<String, Object?>.from(decoded),
+    );
+    return _syncImporter.importGroupPayload(payload);
   }
 
   static int _nowSeconds() => DateTime.now().millisecondsSinceEpoch ~/ 1000;

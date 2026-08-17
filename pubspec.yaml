@@ -29,7 +29,9 @@ dependencies:
   collection: ^1.19.1         # PriorityQueue (heap) untuk settle-up engine
   uuid: ^4.6.0               # UUID v4 untuk Primary Key (id: STRING)
   provider: ^6.1.5+1         # State management / DI ringan (ChangeNotifier)
-  share_plus: ^10.1.4        # Native OS Share Sheet (deep link ke WhatsApp/chat)
+  share_plus: 10.1.4        # Native OS Share Sheet (deep link ke WhatsApp/chat)
+  file_picker: 10.3.10
+  pdf: ^3.13.0
 
 dev_dependencies:
   flutter_test:

@@ -8,10 +8,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:debt_splitter/app/services/backup_service.dart';
 import 'package:debt_splitter/app/services/debt_splitter_service.dart';
 import 'package:debt_splitter/app/state/group_list_store.dart';
 import 'package:debt_splitter/app/ui/create_group_dialog.dart';
 import 'package:debt_splitter/app/ui/group_detail_screen.dart';
+import 'package:debt_splitter/app/ui/import_json_flow.dart';
+import 'package:debt_splitter/app/ui/qr_scan_screen.dart';
 import 'package:debt_splitter/core/models/group.dart';
 import 'package:debt_splitter/core/utils/money_formatter.dart';
 
@@ -42,6 +45,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Muat ulang',
             onPressed: () => context.read<GroupListStore>().load(),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Sinkronisasi & cadangan',
+            onSelected: (value) => _onMenuSelected(context, value),
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'scan',
+                child: ListTile(
+                  leading: Icon(Icons.qr_code_scanner),
+                  title: Text('Scan QR (sinkronisasi)'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.upload_file),
+                  title: Text('Export semua data (JSON)'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'import',
+                child: ListTile(
+                  leading: Icon(Icons.download), title: Text('Import dari file (JSON)'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -76,6 +105,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: const Text('Grup Baru'),
       ),
     );
+  }
+
+  void _onMenuSelected(BuildContext context, String value) {
+    switch (value) {
+      case 'scan':
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const QrScanScreen()),
+        );
+      case 'export':
+        _exportAllData(context);
+      case 'import':
+        showImportJsonFlow(
+          context,
+          onImported: () => context.read<GroupListStore>().load(),
+        );
+    }
+  }
+
+  /// Export seluruh data (semua grup) ke file JSON lalu buka Share Sheet.
+  Future<void> _exportAllData(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final service = context.read<DebtSplitterService>();
+      final backupService = context.read<BackupService>();
+      final json = await service.exportAllDataJsonString();
+      final filename =
+          'debt_splitter_backup_${_dateStamp()}.json';
+      final file = await backupService.writeJsonToTempFile(filename, json);
+      await backupService.shareFiles(
+        [file],
+        subject: 'Backup Debt-Splitter',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Gagal export data: $e')),
+      );
+    }
+  }
+
+  static String _dateStamp() {
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${now.year}${two(now.month)}${two(now.day)}'
+        '_${two(now.hour)}${two(now.minute)}';
   }
 
   Future<void> _openCreateGroup(BuildContext context) async {
