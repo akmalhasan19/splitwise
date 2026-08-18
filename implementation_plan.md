@@ -156,13 +156,13 @@
 
 ### 🗓️ 2. Fitur B — Saran Sama-Rata per Item
 
-- [ ] **B1**: Tambah flag `prefillAll` di `_DraftLine` dan logika `_addLine` untuk mengisi semua claimant sesuai pengaturan
-- [ ] **B2**: Tambah tombol "Centang semua" / "Kosongkan semua" di header editor berlaku ke seluruh bill
-- [ ] **B3**: Test widget baru: item baru pre-checked sesuai toggle; bulk select/deselect; toggle global ON/OFF; perilaku per-item tetap
+- [x] **B1**: Tambah flag `prefillAll` di `_DraftLine` dan logika `_addLine` untuk mengisi semua claimant sesuai pengaturan
+- [x] **B2**: Tambah tombol "Centang semua" / "Kosongkan semua" di header editor berlaku ke seluruh bill
+- [x] **B3**: Test widget baru: item baru pre-checked sesuai toggle; bulk select/deselect; toggle global ON/OFF; perilaku per-item tetap
 
 ### 📋 3. Urutan Pengerjaan & Dependensi
 
-- [ ] Fitur B (B1 → B2 → B3) ≈ 2 hari — kecil, 0 risiko, fondasi UX
+- [x] Fitur B (B1 → B2 → B3) ≈ 2 hari — kecil, 0 risiko, fondasi UX
 - [ ] Fitur A (A1 → A2 → A3 → A4 → A6) ≈ 7–9 hari — A5 (menu dictionary) opsional setelah A4
 - [ ] B **tidak** bergantung pada A; A memakai default centang dari B untuk hasil OCR
 - [ ] A2 (parser) adalah bagian berisiko → dikerjakan lebih awal dan diuji dengan fixture struk sebelum UI

@@ -505,8 +505,11 @@ class ExactSplitTotalRow extends StatelessWidget {
 
 /// Draft satu baris item pada mode "Struk" (menyimpan controller teks).
 class _DraftLine {
-  _DraftLine() {
+  _DraftLine({bool prefillAll = false, Iterable<String>? memberIds}) {
     qtyCtrl.text = '1';
+    if (prefillAll && memberIds != null) {
+      claimants.addAll(memberIds);
+    }
   }
 
   final TextEditingController nameCtrl = TextEditingController();
@@ -541,6 +544,7 @@ class _ItemBillEditor extends StatefulWidget {
 
 class _ItemBillEditorState extends State<_ItemBillEditor> {
   final List<_DraftLine> _lines = <_DraftLine>[];
+  bool _prefillAll = true;
 
   @override
   void dispose() {
@@ -567,17 +571,27 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
   }
 
   void _addLine() {
-    setState(() => _lines.add(_DraftLine()));
+    setState(() {
+      _lines.add(
+        _DraftLine(
+          prefillAll: _prefillAll,
+          memberIds: widget.members.map((m) => m.id),
+        ),
+      );
+    });
     _emit();
   }
 
   /// Menambahkan item hasil OCR ke draft.
   ///
-  /// Setiap item baru otomatis centang semua anggota (A6: default "semua orang").
+  /// Setiap item baru otomatis centang semua anggota jika [_prefillAll] aktif (A6 & B1).
   void addScanResults(List<ReceiptCandidateItem> scanItems) {
     setState(() {
       for (final item in scanItems) {
-        final line = _DraftLine();
+        final line = _DraftLine(
+          prefillAll: _prefillAll,
+          memberIds: widget.members.map((m) => m.id),
+        );
         line.nameCtrl.text = item.name;
         if (item.unitPrice > 0) {
           line.priceCtrl.text = '${item.unitPrice}';
@@ -585,8 +599,6 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
         if (item.quantity > 1) {
           line.qtyCtrl.text = '${item.quantity}';
         }
-        // A6: Default centang semua anggota
-        line.claimants.addAll(widget.members.map((m) => m.id));
         _lines.add(line);
       }
     });
@@ -638,6 +650,28 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
     _emit();
   }
 
+  /// Centang semua anggota untuk seluruh item dalam bill (B2).
+  void _checkAllBill() {
+    setState(() {
+      for (final line in _lines) {
+        line.claimants
+          ..clear()
+          ..addAll(widget.members.map((m) => m.id));
+      }
+    });
+    _emit();
+  }
+
+  /// Kosongkan semua centang untuk seluruh item dalam bill (B2).
+  void _uncheckAllBill() {
+    setState(() {
+      for (final line in _lines) {
+        line.claimants.clear();
+      }
+    });
+    _emit();
+  }
+
   int _total() {
     var total = 0;
     for (final line in _lines) {
@@ -669,6 +703,17 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text(
+              'Item baru otomatis dibagi semua anggota',
+              style: TextStyle(fontSize: 13),
+            ),
+            value: _prefillAll,
+            onChanged: (val) => setState(() => _prefillAll = val),
+          ),
         ],
       );
     }
@@ -676,18 +721,55 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _addLine,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Tambah item'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _openScanScreen,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Scan struk'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: const Text(
+            'Item baru otomatis dibagi semua anggota',
+            style: TextStyle(fontSize: 13),
+          ),
+          value: _prefillAll,
+          onChanged: (val) => setState(() => _prefillAll = val),
+        ),
+        Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            OutlinedButton.icon(
-              onPressed: _addLine,
-              icon: const Icon(Icons.add),
-              label: const Text('Tambah item'),
+            TextButton.icon(
+              onPressed: _checkAllBill,
+              icon: const Icon(Icons.select_all, size: 16),
+              label: const Text(
+                'Centang semua',
+                style: TextStyle(fontSize: 12),
+              ),
             ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _openScanScreen,
-              icon: const Icon(Icons.camera_alt),
-              label: const Text('Scan struk'),
+            const SizedBox(width: 4),
+            TextButton.icon(
+              onPressed: _uncheckAllBill,
+              icon: const Icon(Icons.deselect, size: 16),
+              label: const Text(
+                'Kosongkan semua',
+                style: TextStyle(fontSize: 12),
+              ),
             ),
           ],
         ),
