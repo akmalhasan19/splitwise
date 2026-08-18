@@ -18,6 +18,8 @@ import 'package:debt_splitter/core/models/expense_with_items.dart';
 import 'package:debt_splitter/core/models/user.dart';
 import 'package:debt_splitter/core/money/money_amount.dart';
 import 'package:debt_splitter/core/utils/money_formatter.dart';
+import 'package:debt_splitter/features/ocr/receipt_candidate_item.dart';
+import 'package:debt_splitter/features/ocr/ui/receipt_scan_screen.dart';
 
 enum _SplitMode { equal, exact, item }
 
@@ -569,6 +571,28 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
     _emit();
   }
 
+  /// Menambahkan item hasil OCR ke draft.
+  ///
+  /// Setiap item baru otomatis centang semua anggota (A6: default "semua orang").
+  void addScanResults(List<ReceiptCandidateItem> scanItems) {
+    setState(() {
+      for (final item in scanItems) {
+        final line = _DraftLine();
+        line.nameCtrl.text = item.name;
+        if (item.unitPrice > 0) {
+          line.priceCtrl.text = '${item.unitPrice}';
+        }
+        if (item.quantity > 1) {
+          line.qtyCtrl.text = '${item.quantity}';
+        }
+        // A6: Default centang semua anggota
+        line.claimants.addAll(widget.members.map((m) => m.id));
+        _lines.add(line);
+      }
+    });
+    _emit();
+  }
+
   void _removeLine(int index) {
     setState(() {
       _lines.removeAt(index).dispose();
@@ -579,6 +603,15 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
   void _onFieldChanged(int index) {
     setState(() {});
     _emit();
+  }
+
+  Future<void> _openScanScreen() async {
+    final items = await Navigator.of(context).push<List<ReceiptCandidateItem>>(
+      MaterialPageRoute(builder: (_) => const ReceiptScanScreen()),
+    );
+    if (items != null && items.isNotEmpty) {
+      addScanResults(items);
+    }
   }
 
   void _toggleClaimant(int index, String userId) {
@@ -621,10 +654,20 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
         children: [
           const Text('Belum ada item. Tambahkan menu dari struk.'),
           const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: _addLine,
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah item'),
+          Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: _addLine,
+                icon: const Icon(Icons.add),
+                label: const Text('Tambah item'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _openScanScreen,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Scan struk'),
+              ),
+            ],
           ),
         ],
       );
@@ -632,13 +675,21 @@ class _ItemBillEditorState extends State<_ItemBillEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: OutlinedButton.icon(
-            onPressed: _addLine,
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah item'),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _addLine,
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah item'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _openScanScreen,
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Scan struk'),
+            ),
+          ],
         ),
         for (var i = 0; i < _lines.length; i++) ...[
           if (i > 0) const SizedBox(height: 8),

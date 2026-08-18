@@ -147,12 +147,12 @@
 
 ### 🛠️ 1. Fitur A — OCR On-Device (Scan Struk)
 
-- [ ] **A1**: Integrasi `google_mlkit_text_recognition` untuk OCR on-device (offline, model ter-bundel)
-- [ ] **A2**: Proses capture foto struk → preprocessing → parsing ke nama item + harga + qty
-- [ ] **A3**: Layar review "Hasil scan" dengan edit nama/harga/qty dan peringataan bila total tidak cocok
-- [ ] **A4**: Tambah item ke editor Struk (draft) setelah user tap "Pakai hasil ini"
+- [x] **A1**: Integrasi `google_mlkit_text_recognition` untuk OCR on-device (offline, model ter-bundel)
+- [x] **A2**: Proses capture foto struk → preprocessing → parsing ke nama item + harga + qty
+- [x] **A3**: Layar review "Hasil scan" dengan edit nama/harga/qty dan peringataan bila total tidak cocok
+- [x] **A4**: Tambah item ke editor Struk (draft) setelah user tap "Pakai hasil ini"
 - [ ] **A5**: [Opsional] Dictionary menu untuk suggestions per item (sesuai kebutuhan V2)
-- [ ] **A6**: Integrasi default centang dari Fitur B ke hasil OCR ("semua orang")
+- [x] **A6**: Integrasi default centang dari Fitur B ke hasil OCR ("semua orang")
 
 ### 🗓️ 2. Fitur B — Saran Sama-Rata per Item
 
@@ -170,13 +170,13 @@
 
 ### ✅ 4. Daftar Periksa Kualitas (Final QC)
 
-- [ ] **Offline-first**: scan struk & parsing berjalan di mode pesawat, tanpa panggilan jaringan
-- [ ] **Presisi keuangan**: seluruh harga struk dikonversi ke `MoneyAmount` (`int`) tanpa `double`
-- [ ] **Konservasi**: `sum(expense_shares) == expense.amount` tetap dijamin — tidak ada perubahan pada `ItemBillSplitter`
+- [x] **Offline-first**: scan struk & parsing berjalan di mode pesawat, tanpa panggilan jaringan
+- [x] **Presisi keuangan**: seluruh harga struk dikonversi ke `MoneyAmount` (`int`) tanpa `double`
+- [x] **Konservasi**: `sum(expense_shares) == expense.amount` tetap dijamin — tidak ada perubahan pada `ItemBillSplitter`
 - [ ] **Migrasi aman**: bila `menu_dictionary` jadi, migrasi 2→3 hanya `CREATE TABLE` baru dan `dbSchemaVersion` dinaikkan
-- [ ] **Unit test**: parser OCR ≥ 20 kasus (fixture struk ID); widget test editor Struk (Fitur B) lulus; seluruh suite lama tetap hijau
+- [x] **Unit test**: parser OCR ≥ 20 kasus (fixture struk ID); widget test editor Struk (Fitur B) lulus; seluruh suite lama tetap hijau
 - [ ] **Ukuran APK**: delta ukuran terdokumentasi; release memakai AAB/ABI-split
-- [ ] **Tidak mengubah lapisan rilis**: engine balance, greedy, QR sync, export/import, PDF, WhatsApp share tanpa modifikasi
+- [x] **Tidak mengubah lapisan rilis**: engine balance, greedy, QR sync, export/import, PDF, WhatsApp share tanpa modifikasi
 
 ### 📦 5. Yang TIDAK Perlu Diubah (Nilai Tambah Arsitektur Ini)
 
